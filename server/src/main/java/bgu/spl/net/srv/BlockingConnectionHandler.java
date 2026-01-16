@@ -6,6 +6,8 @@ import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.net.Socket;
+import java.nio.ByteBuffer;
+import java.nio.channels.SelectionKey;
 
 public class BlockingConnectionHandler<T> implements Runnable, ConnectionHandler<T> {
 
@@ -55,6 +57,14 @@ public class BlockingConnectionHandler<T> implements Runnable, ConnectionHandler
 
     @Override
     public void send(T msg) {
-        //IMPLEMENT IF NEEDED
+        try{
+            if(msg!=null) {
+                byte[] encodedMsg = encdec.encode(msg);
+                out.write(encodedMsg);
+                out.flush();
+            }
+        }catch(Exception e){
+            e.printStackTrace();
+        }
     }
 }

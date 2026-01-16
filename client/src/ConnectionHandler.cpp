@@ -84,7 +84,7 @@ bool ConnectionHandler::getFrameAscii(std::string &frame, char delimiter) {
 			}
 			if (ch != '\0')
 				frame.append(1, ch);
-		} while (delimiter != ch);
+		} while (delimiter != ch); 
 	} catch (std::exception &e) {
 		std::cerr << "recv failed2 (Error: " << e.what() << ')' << std::endl;
 		return false;

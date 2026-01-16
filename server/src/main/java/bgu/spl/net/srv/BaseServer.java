@@ -13,6 +13,8 @@ public abstract class BaseServer<T> implements Server<T> {
     private final Supplier<MessagingProtocol<T>> protocolFactory;
     private final Supplier<MessageEncoderDecoder<T>> encdecFactory;
     private ServerSocket sock;
+    private final ConnectionsImpl<T> connections = new ConnectionsImpl<T>();
+    private static int connectionIdCounter = 0;
 
     public BaseServer(
             int port,
@@ -43,6 +45,7 @@ public abstract class BaseServer<T> implements Server<T> {
                         protocolFactory.get());
 
                 execute(handler);
+                connections.addConnection(connectionIdCounter++, handler);
             }
         } catch (IOException ex) {
         }

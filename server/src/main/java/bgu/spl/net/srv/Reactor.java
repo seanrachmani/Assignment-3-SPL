@@ -22,6 +22,8 @@ public class Reactor<T> implements Server<T> {
 
     private Thread selectorThread;
     private final ConcurrentLinkedQueue<Runnable> selectorTasks = new ConcurrentLinkedQueue<>();
+    private final ConnectionsImpl<T> connections = new ConnectionsImpl<T>();
+    private static int connectionIdCounter = 0;
 
     public Reactor(
             int numThreads,
@@ -101,6 +103,7 @@ public class Reactor<T> implements Server<T> {
                 clientChan,
                 this);
         clientChan.register(selector, SelectionKey.OP_READ, handler);
+        connections.addConnection(connectionIdCounter++, handler);
     }
 
     private void handleReadWrite(SelectionKey key) {
