@@ -1,36 +1,43 @@
 package bgu.spl.net.impl.stomp;
 
-import java.nio.channels.Selector;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.function.Supplier;
+import bgu.spl.net.srv.BaseServer;
+import bgu.spl.net.srv.Reactor;
 
-import bgu.spl.net.api.MessageEncoderDecoder;
-import bgu.spl.net.api.MessagingProtocol;
-import bgu.spl.net.srv.Server;
-
-public class StompServer <T> implements Server<T> {
-
-    private final int port;
-    //messeging protocol
-    //message encoder decoder
-    //threads
-    // boolean reactor or 
-    private Thread selectorThread;
-    private final ConcurrentLinkedQueue<Runnable> selectorTasks = new ConcurrentLinkedQueue<>();
-
-    public Reactor(
-            int numThreads,
-            int port,
-            Supplier<MessagingProtocol<T>> protocolFactory,
-            Supplier<MessageEncoderDecoder<T>> readerFactory) {
-
-        this.pool = new ActorThreadPool(numThreads);
-        this.port = port;
-        this.protocolFactory = protocolFactory;
-        this.readerFactory = readerFactory;
-    }
+public class StompServer {
 
     public static void main(String[] args) {
-        // TODO: implement this
+        if (args.length < 2) {
+            System.out.println("Usage: StompServer <port> <tpc/reactor>");
+            return;
+        }
+
+        int port;
+        try {
+            port = Integer.parseInt(args[0]);
+        } catch (NumberFormatException e) {
+            System.out.println("Invalid port: " + args[0]);
+            return;
+        }
+
+        String mode = args[1];
+
+        if (mode.equalsIgnoreCase("tpc")) {
+            new BaseServer(
+                    port,
+                    () -> new StompProtocol(),
+                    () -> new StompEncoderDecoder()
+            ).serve();
+
+        } else if (mode.equalsIgnoreCase("reactor")) {
+            new Reactor(
+                    8, 
+                    port,
+                    () -> new StompProtocol(),
+                    () -> new StompEncoderDecoder()
+            ).serve();
+
+        } else {
+            System.out.println("Unknown mode: " + mode + ". Use 'tpc' or 'reactor'.");
+        }
     }
 }
