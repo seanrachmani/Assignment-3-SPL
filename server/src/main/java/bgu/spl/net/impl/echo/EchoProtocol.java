@@ -3,13 +3,13 @@ package bgu.spl.net.impl.echo;
 import bgu.spl.net.api.MessagingProtocol;
 import java.time.LocalDateTime;
 
-public class EchoProtocol implements MessagingProtocol<String> {
+public class EchoProtocol implements StompMessagingProtocol<String> {
 
     private boolean shouldTerminate = false;
 
     @Override
     public String process(String msg) {
-        shouldTerminate = "bye".equals(msg);
+        shouldTerminate = "^@".equals(msg);
         System.out.println("[" + LocalDateTime.now() + "]: " + msg);
         return createEcho(msg);
     }
