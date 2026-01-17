@@ -13,7 +13,7 @@ public class StompServer {
 
         int port;
         try {
-            port = Integer.parseInt(args[0]);
+            port = args[0];
         } catch (NumberFormatException e) {
             System.out.println("Invalid port: " + args[0]);
             return;
