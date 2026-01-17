@@ -273,6 +273,7 @@ public class StompProtocol implements StompMessagingProtocol<String> {
     //get disconnect frame client instance and handle it as STOMP should
      public void disconnectFrame(Frame frame){
     checkReceipt(frame);
+    Database.getInstance().logout(connectionId);
     connections.disconnect(connectionId);
     shouldTerminate = true;
     }

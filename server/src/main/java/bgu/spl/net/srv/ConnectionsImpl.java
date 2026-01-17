@@ -1,5 +1,6 @@
 package bgu.spl.net.srv;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -100,19 +101,24 @@ public class ConnectionsImpl<T> implements Connections<T> {
     //Removes an active client connectionId from the map
     public void disconnect(int connectionId){
         //first data structure
-        mapUserIDTtoConnectionHandler.remove(connectionId);
-        //subscription remove
-        //channels that the user is subscribe to
-        ConcurrentHashMap<Integer,String> channels = mapUserToChannels.get(connectionId);
-        //unsubscribe from all channels - delete from second data structure
-        if(channels!=null){
-            for(Map.Entry<Integer,String> channel : channels.entrySet()){
-                int subID = channel.getKey();
-                unsubscribe(connectionId, subID);
+        ConnectionHandler<T> connectionHandler = mapUserIDTtoConnectionHandler.remove(connectionId);
+        if(connectionHandler!=null){
+            //subscription remove
+            //channels that the user is subscribe to
+            ConcurrentHashMap<Integer,String> channels = mapUserToChannels.get(connectionId);
+            //unsubscribe from all channels - delete from second data structure
+            if(channels!=null){
+                for(Map.Entry<Integer,String> channel : channels.entrySet()){
+                    int subID = channel.getKey();
+                    unsubscribe(connectionId, subID);
+                }
             }
+            //delete user from third data structure
+            mapUserToChannels.remove(connectionId);
+            try{
+                connectionHandler.close();
+            }catch(IOException ignored){} //everything was closed
         }
-        //delete user from third data structure
-        mapUserToChannels.remove(connectionId);
     }
 
     //gets userID and channel and check if the user is subscribed

@@ -1,5 +1,4 @@
-package bgu.spl.net.impl.echo;
-
+package bgu.spl.net.impl.examples.echo;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;

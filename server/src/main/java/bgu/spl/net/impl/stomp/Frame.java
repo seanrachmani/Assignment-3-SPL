@@ -72,7 +72,7 @@ public class Frame {
         if(this.body!=null){
             frame = frame + this.body ;
         }
-        frame = frame + '\u0000';
+
         return frame;
     }
 }
