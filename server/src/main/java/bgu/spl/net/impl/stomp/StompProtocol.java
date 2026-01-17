@@ -152,6 +152,7 @@ public class StompProtocol implements StompMessagingProtocol<String> {
         }
         String username = frame.getHeaders().get("login");
         String password = frame.getHeaders().get("passcode");
+        //get instance of db whene username and pass saved
         Database db = Database.getInstance();
         LoginStatus status = db.login(connectionId, username, password);
         if(status == LoginStatus.CLIENT_ALREADY_CONNECTED){
