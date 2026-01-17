@@ -50,19 +50,23 @@ public class ConnectionsImpl<T> implements Connections<T> {
     }
 
     //called when user unsubscribe
-    public void unsubscribe(Integer userID, Integer subscriptionID){
+    //return true if was remove, false if subID wasnt found
+    public boolean unsubscribe(Integer userID, Integer subscriptionID){
         ConcurrentHashMap<Integer,String> currentChannels = mapUserToChannels.get(userID);
-        if(currentChannels!=null){
-            String channel = currentChannels.get(subscriptionID);
-            currentChannels.remove(subscriptionID);
-            if(channel!=null){
-                ConcurrentHashMap<Integer,Integer> currentSubs = mapChannels.get(channel);
-                if(currentSubs!=null){
-                    currentSubs.remove(userID);
-                }
-            }
+        if(currentChannels==null){
+            return false;
         }
+        String channel = currentChannels.remove(subscriptionID);
+        if(channel==null){
+            return false;
+        }
+        ConcurrentHashMap<Integer,Integer> currentSubs = mapChannels.get(channel);
+        if(currentSubs!=null){
+            currentSubs.remove(userID);
+            }
+            return true;
     }
+    
 
 
     //returns map of <USERID, sub ID> for specific channel
@@ -110,4 +114,16 @@ public class ConnectionsImpl<T> implements Connections<T> {
         //delete user from third data structure
         mapUserToChannels.remove(connectionId);
     }
+
+    //gets userID and channel and check if the user is subscribed
+    public boolean isSubscribed(int connectionId, String channel){
+        ConcurrentHashMap<Integer,Integer> subscribers = mapChannels.get(channel);
+        if(subscribers==null){
+            return false;
+        }
+        return subscribers.containsKey(connectionId);
+    }
+
+   
+    
 }

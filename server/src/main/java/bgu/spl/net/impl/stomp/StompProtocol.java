@@ -1,20 +1,26 @@
 package bgu.spl.net.impl.stomp;
 
 import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
 import bgu.spl.net.impl.data.LoginStatus;
 import bgu.spl.net.api.StompMessagingProtocol;
 import bgu.spl.net.impl.data.Database;
 import bgu.spl.net.srv.Connections;
 import bgu.spl.net.srv.ConnectionsImpl;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class StompProtocol implements StompMessagingProtocol<String> {
     // =================================FIELDS===========================================================================
     // reference for connections which was created by server in order to be able to
     // do stuff protocol has to do:
-    Connections<String> connections = new ConnectionsImpl<>();
+    private Connections<String> connections;
     // userID:
-    int connectionId = 0;
-    boolean shouldTerminate = false;
+    private int connectionId = 0;
+    private boolean shouldTerminate = false;
+    //generate unique msgCpunter for all users(aka static)
+    private static AtomicInteger msgCounter = new AtomicInteger();
 
     // =================================ABSTRACT===========================================================================
     // Used to initiate the current client protocol with it's personal connection ID
@@ -22,8 +28,8 @@ public class StompProtocol implements StompMessagingProtocol<String> {
     // we use this when first client reach to server
     public void start(int connectionId, Connections<String> connections) {
         this.connections = connections;
-        this.connectionId = connectionId;
-    }
+        this.connectionId = connectionId;   
+     }
 
     public void process(String message) {
         // using splitClientFrame helper function to split msg into frame, see Frame class which represent frame
@@ -171,18 +177,113 @@ public class StompProtocol implements StompMessagingProtocol<String> {
 
     //get send frame client instance and handle it as STOMP should
     public void sendFrame(Frame frame){
+        String channel = frame.getHeaders().get("destination");
+        if(channel==null){
+            String body = "the message:"+ "\n" + frame.toString()+ "\n" + "Did not contain a destination header which is REQUIRED for message propagation.";
+            Frame errorFrame = new Frame("ERROR","message","no destination header",body);
+            sendErrorFrame(errorFrame);
+            return;
+        }
+        ConnectionsImpl<String> connectionsCasting = (ConnectionsImpl<String>)(connections);
+        if(!connectionsCasting.isSubscribed(connectionId,channel)){
+            String body = "user is not subscribed to channel" + channel +"\n" + "please subscribe and try again";
+            Frame errorFrame = new Frame("ERROR","message","user is not subscribed",body);
+            sendErrorFrame(errorFrame);
+            return;
+        }
+        //cant use send method since need unique subID
+        ConcurrentHashMap<Integer,Integer> subscribers = connectionsCasting.getSubscribers(channel);
+        if(subscribers==null || subscribers.isEmpty()){
+            return;
+        }
+        String body = frame.getBody();
+        String currentMessageId = String.valueOf(msgCounter.getAndIncrement());
+        for (Map.Entry<Integer, Integer> sub : subscribers.entrySet()) {
+            String subID = sub.getValue().toString();
+            int currentSubscriberUserID = sub.getKey();
+            Frame serverMessageFrame = new Frame("MESSAGE","destination",channel,body);
+            serverMessageFrame.putHeader("subscription",subID);
+            serverMessageFrame.putHeader("message-id", currentMessageId);
+            connections.send(currentSubscriberUserID,serverMessageFrame.toString());
+        }
+        checkReceipt(frame);
     }
 
     //get subscribre frame client instance and handle it as STOMP should
     public void subscribeFrame(Frame frame){
+         String channel = frame.getHeaders().get("destination");
+        if(channel==null){
+            String body = "the message:"+ "\n" + frame.toString()+ "\n" + "Did not contain a destination header which is REQUIRED for message propagation.";
+            Frame errorFrame = new Frame("ERROR","message","no destination header",body);
+            sendErrorFrame(errorFrame);
+            return;
+        }
+        String subId = frame.getHeaders().get("id");
+            if(subId==null){
+            String body = "the message:"+ "\n" + frame.toString()+ "\n" + "Did not contain a id header which is REQUIRED for message propagation.";
+            Frame errorFrame = new Frame("ERROR","message","no id header",body);
+            sendErrorFrame(errorFrame);
+            return;
+        }
+        int subIdInt;
+        try{
+            subIdInt = 	Integer.parseInt(subId);
+        }
+        catch(Exception e){
+            String body = "id header must contain a number.you sent: " + subId;
+            sendErrorFrame(new Frame("ERROR", "message", "malformed id header", body));
+            return;  
+        }
+        ConnectionsImpl<String> connectionsCasting = (ConnectionsImpl<String>)(connections);
+        connectionsCasting.subscribe(channel, connectionId, subIdInt);
+        checkReceipt(frame);
     }
 
 
     //get unsubscribre frame client instance and handle it as STOMP should
+    //potential errors: user isnt subsribed to t
     public void unsubscribeFrame(Frame frame){
+        String subId = frame.getHeaders().get("id");
+        if(subId==null){
+        String body = "the message:"+ "\n" + frame.toString()+ "\n" + "Did not contain a id header which is REQUIRED for message propagation.";
+        Frame errorFrame = new Frame("ERROR","message","no id header",body);
+        sendErrorFrame(errorFrame);
+        return;
+        }
+        int subIdInt;
+        try{
+            subIdInt = 	Integer.parseInt(subId);
+        }
+        catch(Exception e){
+            String body = "id header must contain a number.you sent: " + subId;
+            sendErrorFrame(new Frame("ERROR", "message", "malformed id header", body));
+            return;  
+        }
+        ConnectionsImpl<String> connectionsCasting = (ConnectionsImpl<String>)(connections);
+        if(!connectionsCasting.unsubscribe(connectionId,subIdInt)){
+            Frame errorFrame = new Frame("ERROR","message","subscription id wasnt found","");
+            sendErrorFrame(errorFrame);
+            return;
+        }
+        checkReceipt(frame);
     }
+
+
     //get disconnect frame client instance and handle it as STOMP should
      public void disconnectFrame(Frame frame){
+    checkReceipt(frame);
+    connections.disconnect(connectionId);
+    shouldTerminate = true;
+    }
+
+
+    //handle recipt as STOMP should, used by all of the other clients frames above
+    //except connect that has connected server frame
+    public void checkReceipt(Frame frame){
+        String receiptId = frame.getHeaders().get("receipt");
+        if (receiptId != null) {
+            connections.send(connectionId, new Frame("RECEIPT", "receipt-id", receiptId, "").toString());
+        }
     }
 
 }
