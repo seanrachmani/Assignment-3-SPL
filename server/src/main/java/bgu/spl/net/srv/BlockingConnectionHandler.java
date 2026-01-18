@@ -36,6 +36,7 @@ public class BlockingConnectionHandler<T> implements Runnable, ConnectionHandler
         this.protocol = protocol;
     }
 
+    //add:
     //gets connection id and connection object and start stomp prtocol
     public void startProtocol(Connections<T> connections,int connectionId){
         this.connectionId = connectionId;
@@ -76,6 +77,7 @@ public class BlockingConnectionHandler<T> implements Runnable, ConnectionHandler
 
     @Override
     //send msg to client throgh the socket
+    //called by connectionsImp.send
     public void send(T msg) {
         if(msg!=null){
             //encode to bytes
