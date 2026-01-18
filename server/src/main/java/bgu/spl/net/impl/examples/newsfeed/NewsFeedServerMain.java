@@ -1,4 +1,4 @@
-package bgu.spl.net.impl.newsfeed;
+package bgu.spl.net.impl.examples.newsfeed;
 
 import bgu.spl.net.impl.rci.ObjectEncoderDecoder;
 import bgu.spl.net.impl.rci.RemoteCommandInvocationProtocol;
