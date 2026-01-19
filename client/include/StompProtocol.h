@@ -5,6 +5,7 @@
 #include <iostream>
 #include <sstream>
 #include "../include/ConnectionHandler.h"
+#include "../include/event.h"
 
 struct Frame {
     std::string command;
@@ -44,6 +45,13 @@ StompProtocol() : subscriptionIdCounter(0), receiptIdCounter(0), currentUsername
 //in case there is error that has to be printed without connecting to server it, save it in error object that recieved as paramete
 //cmd is & for efficienty, error bc were chaning it so we have to
 Frame userCmdToFrame(std::string& cmd,std::string& error);
+
+//gets report command and return vector of send frames for the server
+//save error in case of any error
+std::vector<Frame> parseReportFile(const std::string& filename,std::string& error);
+
+//make frame from event 
+Frame buildFrameFromEvent(const Event& event);
 
 //gets answerFrame from server and handle it according to instructions
 std::string handleServerFrame(std::string& serverFrame);

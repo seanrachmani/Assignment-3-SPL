@@ -1,5 +1,6 @@
 #include <string>
 #include "../include/StompProtocol.h"
+#include "../include/event.h"
 
 Frame StompProtocol::userCmdToFrame(std::string& cmd,std::string& error) {
     //split user cmd 
@@ -61,12 +62,62 @@ Frame StompProtocol::userCmdToFrame(std::string& cmd,std::string& error) {
         return frame;
     }
 
-
-
+     error = "invalid user command";
     return frame; //empty frame
-    error = "invalid user command";
+   
 }
 
+std::vector<Frame> StompProtocol::parseReportFile(const std::string& filename, std::string& error) {
+    std::vector<Frame> frames;
+    if (!isConnected) {
+        error = "You must log in first";
+        return frames;
+    }
+
+    try {
+        names_and_events data = parseEventsFile(filename); 
+        for (const Event& event : data.events) {
+            frames.push_back(buildFrameFromEvent(event));
+        }
+    } catch (...) { //catch any exception
+        error = "Failed to parse file";
+    }
+    return frames;
+}
+
+Frame StompProtocol::buildFrameFromEvent(const Event& event) {
+    Frame frame;
+    frame.command = "SEND";
+    frame.headers["destination"] = "/" + event.get_team_a_name() + "_" + event.get_team_b_name();
+
+    std::string body = "";
+    body += "user: " + currentUsername + "\n";
+    body += "team a: " + event.get_team_a_name() + "\n";
+    body += "team b: " + event.get_team_b_name() + "\n";
+    body += "event name: " + event.get_name() + "\n";
+    body += "time: " + std::to_string(event.get_time()) + "\n";
+    
+    body += "general game updates:\n";
+    for (const auto& pair : event.get_game_updates()) {
+        body += pair.first + ": " + pair.second + "\n";
+    }
+
+    body += "team a updates:\n";
+    for (const auto& pair : event.get_team_a_updates()) {
+        body += pair.first + ": " + pair.second + "\n";
+    }
+
+    body += "team b updates:\n";
+    for (const auto& pair : event.get_team_b_updates()) {
+        body += pair.first + ": " + pair.second + "\n";
+    }
+
+    body += "description:\n";
+    body += event.get_discription();
+    
+    frame.body = body;
+    return frame;
+}
 
 std::string StompProtocol::handleServerFrame(std::string& serverFrame){
     Frame frame = splitFrame(serverFrame);
@@ -102,6 +153,9 @@ std::string StompProtocol::handleServerFrame(std::string& serverFrame){
                 }
             }
         }
+    }
+    if(frame.command == "MESSAGE"){
+       
     }
     
     

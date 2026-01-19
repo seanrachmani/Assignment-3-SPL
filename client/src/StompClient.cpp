@@ -1,6 +1,8 @@
 #include <stdlib.h>
 #include <iostream>
 #include <thread>
+#include <vector>   
+#include <sstream>  
 #include "../include/ConnectionHandler.h"
 #include "../include/StompProtocol.h"
 
@@ -23,22 +25,39 @@ class InputClass{
 			char buf[bufsize];
 			std::cin.getline(buf, bufsize);
 			std::string line(buf);
-			//synchronized
-			Frame frame;
-			std::string error="";
-			{
-			std::lock_guard<std::mutex> lock(_mutex);
-			//in case we have error that we want to print without connecting to server, UserCmdToFrame saving it in error parameter
-			frame = _protocol.userCmdToFrame(line,error);
+			std::stringstream stream(line);
+        	std::string command;
+        	stream >> command;
+			if(command=="report"){//we need to return lots of send frames
+				std::string filename;
+				stream >> filename;
+				std::string error;
+				std::vector<Frame> frames;
+				{
+					std::lock_guard<std::mutex> lock(_mutex);
+					frames = _protocol.parseReportFile(filename, error);
+				}
+				if (error != "") std::cout << error << std::endl;
+				for (Frame& f : frames) {
+					std::string fString = f.toString();
+					_handler.sendLine(fString);
+				} 
 			}
-			if(frame.command==""){
-				std::cout << error;
-			}
-			else{ 
-				std::string frameString = frame.toString();
-				if (!_handler.sendLine(frameString)) {
-					std::cout << "Disconnected. Exiting...\n" << std::endl;
-					break;
+			else { //any other user commands
+            std::string error;
+            Frame frame;
+            {
+                std::lock_guard<std::mutex> lock(_mutex);
+                frame = _protocol.userCmdToFrame(line, error);
+            }
+
+            if (error != "") std::cout << error << std::endl;
+				if (frame.command != "") {
+					std::string frameString = frame.toString();
+					if (!_handler.sendLine(frameString)) {
+						std::cout << "Disconnected..." << std::endl;
+						break;
+					}
 				}
 			}
 		}
