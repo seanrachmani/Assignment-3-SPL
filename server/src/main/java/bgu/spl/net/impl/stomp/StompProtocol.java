@@ -161,12 +161,12 @@ public class StompProtocol implements StompMessagingProtocol<String> {
             return;
         }
         if(status == LoginStatus.ALREADY_LOGGED_IN){
-            Frame errorFrame = new Frame("ERROR","message","already logged in","");
+            Frame errorFrame = new Frame("ERROR","message","User already logged in","");
             sendErrorFrame(errorFrame);
             return;
         }
         if(status == LoginStatus.WRONG_PASSWORD){
-            Frame errorFrame = new Frame("ERROR","message","wrong password","");
+            Frame errorFrame = new Frame("ERROR","message","Wrong password","");
             sendErrorFrame(errorFrame);
             return;
         }
