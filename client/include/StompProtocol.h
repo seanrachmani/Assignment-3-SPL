@@ -17,6 +17,9 @@ struct Frame {
     std::string command;
     std::map<std::string, std::string> headers; //<name,value>
     std::string body;
+
+    Frame(): command(""),headers(),body(""){};
+
     std::string toString() {
         std::string res = command + "\n";
         for (const auto& pair : headers) {
@@ -87,8 +90,9 @@ std::pair<Event, std::string> buildEvent(const std::string& body) {
 
 
 public:
-    Game(std::string a, std::string b) : teamA(a), teamB(b) {}
-    Game() : teamA(""), teamB("") {}
+    Game() : teamA(""), teamB(""),generalStats(),teamAStats(),teamBStats(),events() {}
+    Game(std::string a, std::string b) : teamA(a), teamB(b),generalStats(),teamAStats(),teamBStats(),events() {}
+   
 
     //we will call this function when server send MESSAGE Frame in order for summary to be updated
     void pushMessageFrame(const std::string& body) {
@@ -139,8 +143,7 @@ public:
 
 //=============================================================================================================================
 //actual protocol
-class StompProtocol
-{
+class StompProtocol{
 private:
 int subscriptionIdCounter;
 int receiptIdCounter;
@@ -159,7 +162,8 @@ std::map<int, std::string> receiptActions; //map recipt by recipt id that the se
 std::map<std::string, Game> games;
 
 public:
-StompProtocol() : subscriptionIdCounter(0), receiptIdCounter(0),receiptDisconnectCounter(-1), currentUsername(""), isConnected(false) {}
+StompProtocol() : subscriptionIdCounter(0), receiptIdCounter(0),receiptDisconnectCounter(-1), currentUsername(""), isConnected(false),
+gameToSubId(),receiptActions(),games(){};
 
 //isconnected getter for logout
 bool getConnected() {
@@ -186,4 +190,3 @@ std::string handleServerFrame(std::string& serverFrame);
 Frame splitFrame(std::string& msg);
 
 };
-
