@@ -1,7 +1,9 @@
 #include <string>
 #include "../include/StompProtocol.h"
 #include "../include/event.h"
+#include <fstream>
 
+//input thread:
 Frame StompProtocol::userCmdToFrame(std::string& cmd,std::string& error) {
     //split user cmd 
     std::stringstream stream (cmd);
@@ -9,6 +11,7 @@ Frame StompProtocol::userCmdToFrame(std::string& cmd,std::string& error) {
     stream >> actualCmd;
     Frame frame;
     frame.command = ""; //starting with empty frame
+
     if(actualCmd =="login"){
         std::string hostPort, username, password;
         stream >> hostPort >> username >> password;
@@ -28,6 +31,7 @@ Frame StompProtocol::userCmdToFrame(std::string& cmd,std::string& error) {
         error = "You must log in first";
         return frame; 
     }
+
     if(actualCmd == "join"){
         std::string gameName;
         stream >> gameName;
@@ -62,11 +66,53 @@ Frame StompProtocol::userCmdToFrame(std::string& cmd,std::string& error) {
         return frame;
     }
 
+    
+    if(actualCmd == "logout"){
+        if(!isConnected){
+            error = "user is not logged in";
+            return frame; //empty
+        }
+        frame.command = "DISCONNECT";
+        receiptIdCounter ++;
+        receiptDisconnectCounter = receiptIdCounter;
+        frame.headers["receipt"] = std::to_string(receiptIdCounter);
+    }
+
+    
+    if (actualCmd == "summary") {
+        std::string gameName, user, file;
+        stream >> gameName >> user >> file;
+        if (games.find(gameName) == games.end()) {
+            error = "No data found for game " + gameName;
+            return frame; //empty frame
+        }
+        //see get summary function in games calss in stompProtocl.h
+        std::string summary = games[gameName].getSummary(user);
+
+        //write to file summary output:
+        //create empy file or clean the file we found
+        std::ofstream outFile(file); 
+        //check we can access file
+        if (!outFile.is_open()) {
+            error = "Failed to create or open file: " + file;
+            return frame;
+        }
+        //put summary string into file
+        outFile << summary;
+        outFile.close();
+
+       //we want to return empty frame bc no need to send server anything
+        return frame; 
+    }
+
+
+    //we didnt recgonized valid user command
      error = "invalid user command";
     return frame; //empty frame
    
 }
 
+//this function handeles user report cmd
 std::vector<Frame> StompProtocol::parseReportFile(const std::string& filename, std::string& error) {
     std::vector<Frame> frames;
     if (!isConnected) {
@@ -85,6 +131,7 @@ std::vector<Frame> StompProtocol::parseReportFile(const std::string& filename, s
     return frames;
 }
 
+//take the parser was given to us and make frame out of it using our frame struct in order for server to read
 Frame StompProtocol::buildFrameFromEvent(const Event& event) {
     Frame frame;
     frame.command = "SEND";
@@ -118,23 +165,38 @@ Frame StompProtocol::buildFrameFromEvent(const Event& event) {
     frame.body = body;
     return frame;
 }
-
+//=============================================================================================================
+//socket thread:
 std::string StompProtocol::handleServerFrame(std::string& serverFrame){
     Frame frame = splitFrame(serverFrame);
     if (frame.command == "CONNECTED") {
         isConnected = true;
         return "Login successful";
     }
+
     if (frame.command == "ERROR") {
         isConnected = false;
         return frame.headers["message"];
     }
-
     
     if (frame.command == "RECEIPT") {
         if (frame.headers.count("receipt-id")) { //there is header like this 
             int receiptId = std::stoi(frame.headers["receipt-id"]); //stoi - string to int
-            
+            //logout receipt:
+            if(receiptDisconnectCounter != -1 && receiptId == receiptDisconnectCounter){
+                subscriptionIdCounter = 0;
+                receiptIdCounter = 0;
+                currentUsername = "";
+                isConnected = false;
+                receiptDisconnectCounter = -1;
+                //no concerns for memory leaks since we have no pointer fields
+                gameToSubId.clear();
+                games.clear();
+                receiptActions.clear();
+                //not sure if we have to print logout msg but whatever:
+                return "You have successfully logged out";
+            }
+            //join&exit
             //did we put in userCMDtoFrame something to send?
             if (receiptActions.count(receiptId)) {
                 std::string action = receiptActions[receiptId];
@@ -154,16 +216,21 @@ std::string StompProtocol::handleServerFrame(std::string& serverFrame){
             }
         }
     }
-    if(frame.command == "MESSAGE"){
-       
+    
+    if (frame.command == "MESSAGE") {
+        std::string gameName = frame.headers["destination"];
+        //remove / charr
+        if (gameName.length() > 0 && gameName[0] == '/') {
+            gameName = gameName.substr(1);
+        }
+        //save into games.events 
+        games[gameName].pushMessageFrame(frame.body);
+        return "Received update for " + gameName + ":\n" + frame.body;
+        return "";
     }
-    
-    
- 
+    //if we got till here the command is not recgonized
 
-    return "";
-    
-
+    return "";   
 }
 
 
@@ -194,3 +261,4 @@ Frame StompProtocol::splitFrame(std::string& msg){
     }
     return frame;
 }
+

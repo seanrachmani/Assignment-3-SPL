@@ -52,7 +52,7 @@ class InputClass{
             }
 
             if (error != "") std::cout << error << std::endl;
-				if (frame.command != "") {
+				if (frame.command != "") { //we want to send only relevant frames
 					std::string frameString = frame.toString();
 					if (!_handler.sendLine(frameString)) {
 						std::cout << "Disconnected..." << std::endl;
@@ -92,7 +92,12 @@ class SocketClass{
 			//synchronized
 			{
 			std::lock_guard<std::mutex> lock(_mutex);
-			std::cout << _protocol.handleServerFrame(answer);
+			std::string	result = _protocol.handleServerFrame(answer);
+			if(_protocol.getConnected() == false){
+				_handler.close();
+				break;
+			}
+			std::cout << result << std::endl;
 			}
 		}
 	}
@@ -105,7 +110,7 @@ int main(int argc, char *argv[]) {
         return -1;
     }
     std::string host = argv[1];
-    short port = atoi(argv[2]);
+    short port = atoi(argv[2]); //string to int
     
 	//create ch and protocol
     ConnectionHandler connectionHandler(host, port);
