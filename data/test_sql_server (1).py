@@ -5,7 +5,7 @@ import threading
 import os
 import sys
 
-def send_sql(sql: str, port=7778) -> str:
+def send_sql(sql: str, port=7779) -> str:
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.connect(("127.0.0.1", port))
@@ -32,6 +32,7 @@ def run_tests():
     # TEST 1
     print("\n[TEST 1] Inserting user...")
     response = send_sql("INSERT INTO users (username, password, registration_date) VALUES ('alice', 'pass123', datetime('now'))")
+    print("SERVER SAID:", response)
     assert response.startswith("SUCCESS"), f"Failed: {response}"
     print("✓ PASS")
     
@@ -66,15 +67,28 @@ def run_tests():
     print("=" * 80)
 
 if __name__ == "__main__":
+    # 1. סגירת שאריות (במקרה שהרצת קודם והוא נתקע)
     if os.path.exists("stomp_server.db"):
-        try: os.remove("stomp_server.db")
-        except: pass
+        try:
+            os.remove("stomp_server.db")
+            print("Cleaned up old database")
+        except:
+            pass
 
+    # 2. ייבוא השרת
+    from sql_server import start_server 
+
+    # 3. הפעלת השרת ב-Thread
+    print("Starting server...")
+    #server_thread = threading.Thread(target=lambda: start_server(port=7778), daemon=True)
+    #server_thread.start()
+    
+    # 4. המתנה קריטית! נותן לשרת זמן ליצור את הטבלאות
+    print("Waiting for database initialization (2 seconds)...")
+    time.sleep(2) 
+    
+    # 5. הרצת הטסטים
     try:
-        from sql_server import start_server 
-    except ImportError:
-        print("Error: Name the server file 'sql_server.py'")
-        sys.exit(1)
-
-    threading.Thread(target=lambda: start_server(port=7778), daemon=True).start()
-    run_tests()
+        run_tests()
+    except AssertionError as e:
+        print(f"\n✗ TEST FAILED: {e}")

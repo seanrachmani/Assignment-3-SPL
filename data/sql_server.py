@@ -30,28 +30,28 @@ def recv_null_terminated(sock: socket.socket) -> str:
             return msg.decode("utf-8", errors="replace")
 
 
-_conn = sqlite3.connect(DB_FILE)
+_conn = sqlite3.connect(DB_FILE, check_same_thread=False)
 cursor = _conn.cursor()
 
 def init_database():
     _conn.executescript("""
                          
-            CREATE TABLE users (
+            CREATE TABLE IF NOT EXISTS users (
             username    TEXT        PRIMARY KEY,
             password    TEXT        NOT NULL,
             registration_date   DATETIME    NOT NULL
         );
                              
-        CREATE TABLE login_history (
+        CREATE TABLE IF NOT EXISTS login_history (
             id          INTEGER     PRIMARY KEY,
             username    TEXT        NOT NULL,
             login_time  DATETIME    NOT NULL,
-            logout_time DATETIME    
+            logout_time DATETIME,    
                          
            FOREIGN KEY(username) REFERENCES users(username)              
         );
                          
-        CREATE TABLE file_tracking (
+        CREATE TABLE IF NOT EXISTS file_tracking (
             file_name   TEXT        PRIMARY KEY,
             username_of_submitter   TEXT,
             game_channel            TEXT        NOT NULL,      
@@ -70,6 +70,7 @@ def execute_sql_command(sql_command: str) -> str:
         _conn.commit()
         return "SUCCESS |" + sql_command + "|"
     except Exception as e:
+        print(f"SQL Error: {e}")
         return "ERROR |" + str(e) + "|"
 
 
@@ -113,8 +114,8 @@ def handle_client(client_socket: socket.socket, addr):
     try:
         while True:
             message = recv_null_terminated(client_socket).strip()
-            if message == "":
-                break
+            if not message:
+                continue
             elif message == "REPORT":
                 Report()
                 response = "SUCCESS|Report printed to server console"
@@ -122,7 +123,7 @@ def handle_client(client_socket: socket.socket, addr):
                 response =  execute_sql_query(message)
             else: 
                 response = execute_sql_command(message)
-            client_socket.sendall(response + " \0")
+            client_socket.sendall((response + "\0").encode("utf-8"));
     except Exception as e:
         print(f"[{SERVER_NAME}] Error handling client {addr}: {e}")
     finally:
@@ -132,7 +133,8 @@ def handle_client(client_socket: socket.socket, addr):
             pass
         print(f"[{SERVER_NAME}] Client {addr} disconnected")
 
-def start_server(host="127.0.0.1", port=7778):
+
+def start_server(host="127.0.0.1", port=7779):
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
@@ -161,7 +163,7 @@ def start_server(host="127.0.0.1", port=7778):
 
 
 if __name__ == "__main__":
-    port = 7778
+    port = 7779
     if len(sys.argv) > 1:
         raw_port = sys.argv[1].strip()
         try:
