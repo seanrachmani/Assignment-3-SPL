@@ -66,6 +66,7 @@ def init_database():
 
 def execute_sql_command(sql_command: str) -> str:
     try:
+        # tell the sql to do the command
         _conn.execute(sql_command)
         _conn.commit()
         return "SUCCESS |" + sql_command + "|"
@@ -79,12 +80,16 @@ def execute_sql_query(sql_query: str) -> str:
     try:
         cursor = _conn.cursor()
         cursor.execute(sql_query)
+        # get the result of the query
         rows = cursor.fetchall()
-        
+        # managed to find but its empty
         if not rows:
             return "SUCCESS|[]"
+        # return everything found
         results = [str(row) for row in rows]
+        #seperate by | as databse require
         return "SUCCESS|" + "|".join(results)
+    #the query failed
     except Exception as e:
         return f"ERROR|{str(e)}"
 
@@ -93,15 +98,17 @@ def Report():
     print("--- SERVER SQL REPORT ---")
     print("="*30)
     
+    # get current usernames
     cursor.execute("SELECT username FROM users")
     users = cursor.fetchall()
+
     for (user_name,) in users:
         print(f"\nUser: {user_name}")
-
+        # get their logout and loogin times
         cursor.execute("SELECT login_time, logout_time FROM login_history WHERE username=?", (user_name,))
         history = cursor.fetchall()
         print(f"  Login History: {history}")
-        
+        # get all the file names they uploaded
         cursor.execute("SELECT file_name FROM file_tracking WHERE username_of_submitter=?", (user_name,))
         files = cursor.fetchall()
         print(f"  Files: {files}")
@@ -112,17 +119,27 @@ def handle_client(client_socket: socket.socket, addr):
     print(f"[{SERVER_NAME}] Client connected from {addr}")
 
     try:
+        #the server loop
         while True:
-            message = recv_null_terminated(client_socket).strip()
-            if not message:
+            raw = recv_null_terminated(client_socket)
+            # server is closed
+            if raw == "":
+                break
+            message = raw.strip()
+            # nothing is sent
+            if message == "":
                 continue
+            # report asking
             elif message == "REPORT":
                 Report()
-                response = "SUCCESS|Report printed to server console"
+                response = "SUCCESS|Report printed to server console|"
+            # its a query
             elif message.startswith("SELECT"):
                 response =  execute_sql_query(message)
+            # can only be command
             else: 
                 response = execute_sql_command(message)
+            # send the response with the null char
             client_socket.sendall((response + "\0").encode("utf-8"));
     except Exception as e:
         print(f"[{SERVER_NAME}] Error handling client {addr}: {e}")

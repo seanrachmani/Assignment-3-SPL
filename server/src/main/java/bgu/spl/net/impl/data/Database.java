@@ -17,7 +17,7 @@ public class Database {
 		connectionsIdMap = new ConcurrentHashMap<>();
 		// SQL server connection details
 		this.sqlHost = "127.0.0.1";
-		this.sqlPort = 7778;
+		this.sqlPort = 7779;
 	}
 
 	public static Database getInstance() {
@@ -153,13 +153,13 @@ public class Database {
 	 * @param gameChannel Game channel the file was reported to
 	 */
 	public void trackFileUpload(String username, String filename, String gameChannel) {
-		String sql = String.format(
-			"INSERT INTO file_tracking (filename, username,  game_channel, date_time ) " +
-			"VALUES ('%s', '%s', '%s', datetime('now'))",
-			escapeSql(filename), escapeSql(username),  escapeSql(gameChannel)
-		);
-		executeSQL(sql);
-	}
+    String sql = String.format(
+        "INSERT INTO file_tracking (file_name, username_of_submitter, game_channel, date_time) " +
+        "VALUES ('%s', '%s', '%s', datetime('now'))",
+        escapeSql(filename), escapeSql(username), escapeSql(gameChannel)
+    );
+    executeSQL(sql);
+}
 
 	/**
 	 * Generate and print server report using SQL queries
@@ -213,7 +213,7 @@ public class Database {
 		// File uploads for each user
 		System.out.println("\n3. FILE UPLOADS:");
 		System.out.println(repeat("-", 80));
-		String filesSQL = "SELECT username, filename, upload_time, game_channel FROM file_tracking ORDER BY username, upload_time DESC";
+		String filesSQL = "SELECT username_of_submitter, file_name, date_time, game_channel FROM file_tracking ORDER BY username_of_submitter, date_time DESC";
 		String filesResult = executeSQL(filesSQL);
 		if (filesResult.startsWith("SUCCESS")) {
 			String[] parts = filesResult.split("\\|");
