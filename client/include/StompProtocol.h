@@ -133,7 +133,7 @@ public:
             const std::string& sender = pair.second;
             if(sender == requestedUser){
                 output += std::to_string(event.get_time()) + " - " + event.get_name() + ":\n\n";
-                output += event.get_discription() + "\n\n\n";
+                output += event.get_discription() + "\n\n";
             }
         }
         return output;

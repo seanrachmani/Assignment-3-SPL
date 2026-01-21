@@ -38,6 +38,9 @@ class InputClass{
 					frames = _protocol.parseReportFile(filename, error);
 				}
 				if (error != "") std::cout << error << std::endl;
+				else{
+					std::cout << "Report file parsed successfully! Sending " << frames.size() << " events" << std::endl;
+				}
 				for (Frame& f : frames) {
 					std::string fString = f.toString();
 					_handler.sendBytes(fString.c_str(), fString.length());
@@ -56,9 +59,7 @@ class InputClass{
 			}
 			if (frame.command != "") { //we want to send only relevant frames
 				std::string frameString = frame.toString();
-				std::cout << "DEBUG string sent to server by input class is \n"+ frameString;
 				bool sendLine = _handler.sendBytes(frameString.c_str(), frameString.length());
-				std::cout << "DEBUG sendline by input class is \n" << std::boolalpha << sendLine << std::endl;
 				if (!sendLine) {
 					std::cout << "Disconnected..." << std::endl;
 					break;

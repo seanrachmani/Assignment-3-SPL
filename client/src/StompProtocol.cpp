@@ -32,7 +32,6 @@ Frame StompProtocol::userCmdToFrame(std::string& cmd,std::string& error) {
     }
 
     if(actualCmd == "join"){
-        std::cout << "DEBUG join userCMDTOFRAME loop\n";
         std::string gameName;
         stream >> gameName;
         int id = subscriptionIdCounter;
@@ -46,8 +45,6 @@ Frame StompProtocol::userCmdToFrame(std::string& cmd,std::string& error) {
         frame.headers["destination"] = "/" + gameName; 
         frame.headers["id"] = std::to_string(id);
         frame.headers["receipt"] = std::to_string(receipt);
-        std::cout << "DEBUG error is"+ error+ "\n";
-        std::cout << "DEBUG frame returnd by join if in user cmd is: \n"+ frame.toString();
         return frame;
     }
 
@@ -78,6 +75,7 @@ Frame StompProtocol::userCmdToFrame(std::string& cmd,std::string& error) {
         receiptIdCounter ++;
         receiptDisconnectCounter = receiptIdCounter;
         frame.headers["receipt"] = std::to_string(receiptIdCounter);
+        return frame;
     }
 
     
@@ -170,7 +168,7 @@ Frame StompProtocol::buildFrameFromEvent(const Event& event) {
     }
 
     body += "description:\n";
-    body += event.get_discription() +"\n";
+    body += event.get_discription();
     
     frame.body = body;
     return frame;
@@ -178,7 +176,6 @@ Frame StompProtocol::buildFrameFromEvent(const Event& event) {
 //=============================================================================================================
 //socket thread:
 std::string StompProtocol::handleServerFrame(std::string& serverFrame){
-    std::cout << "DEBUG handleserverfRAME, the frame that we got from server is \n" << serverFrame << std::endl;
     Frame frame = splitFrame(serverFrame);
     if (frame.command == "CONNECTED") {
         isConnected = true;
@@ -186,13 +183,11 @@ std::string StompProtocol::handleServerFrame(std::string& serverFrame){
     }
 
     if (frame.command == "ERROR") {
-         std::cout << "DEBUG handleserverfRAME,ERROR IF, headers[message] is \n" << frame.headers["message"] << std::endl;
         isConnected = false;
         return frame.headers["message"];
     }
     
     if (frame.command == "RECEIPT") {
-        std::cout << "DEBUG handleserverfRAME receipt if \n";
         if (frame.headers.count("receipt-id")) { //there is header like this 
             int receiptId = std::stoi(frame.headers["receipt-id"]); //stoi - string to int
             //logout receipt:
@@ -238,12 +233,11 @@ std::string StompProtocol::handleServerFrame(std::string& serverFrame){
         }
         //save into games.events 
         games[gameName].pushMessageFrame(frame.body);
-        return "Received update for " + gameName + ":\n" + frame.body;
         return "";
     }
     //if we got till here the command is not recgonized
 
-    return frame.toString();   
+    return "";
 }
 
 
