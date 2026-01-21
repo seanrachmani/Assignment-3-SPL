@@ -50,6 +50,7 @@ def init_database():
                          
            FOREIGN KEY(username) REFERENCES users(username)              
         );
+        CREATE UNIQUE INDEX IF NOT EXISTS uniqe_login ON login_history(username) WHERE logout_time IS NULL;
                          
         CREATE TABLE IF NOT EXISTS file_tracking (
             file_name   TEXT        PRIMARY KEY,
