@@ -38,8 +38,8 @@ def init_database():
                          
             CREATE TABLE users (
             username    TEXT        PRIMARY KEY,
-            user_id      INT         NOT NULL,
-            password    TEXT        NOT NULL
+            password    TEXT        NOT NULL,
+            registration_date   DATETIME    NOT NULL
         );
                              
         CREATE TABLE login_history (
@@ -52,11 +52,10 @@ def init_database():
         );
                          
         CREATE TABLE file_tracking (
-            file_id     INTEGER     PRIMARY KEY,
-            file_name   TEXT        NOT NULL,
+            file_name   TEXT        PRIMARY KEY,
             username_of_submitter   TEXT,
             game_channel            TEXT        NOT NULL,      
-            timestamp               DATETIME    NOT NULL,
+            date_time               DATETIME    NOT NULL,
                          
             FOREIGN KEY(username_of_submitter) REFERENCES users(username)
         );
@@ -68,6 +67,7 @@ def init_database():
 def execute_sql_command(sql_command: str) -> str:
     try:
         _conn.execute(sql_command)
+        _conn.commit()
         return "SUCCESS |" + sql_command + "|"
     except Exception as e:
         return "ERROR |" + str(e) + "|"
@@ -82,17 +82,29 @@ def execute_sql_query(sql_query: str) -> str:
         
         if not rows:
             return "SUCCESS|[]"
-            
-        # Join rows with '|'
         results = [str(row) for row in rows]
         return "SUCCESS|" + "|".join(results)
     except Exception as e:
         return f"ERROR|{str(e)}"
 
 def Report():
-    print ( "------REPORT FROM SQL-----")
-    all_users = _conn.execute ("SELECT username FROM users")
-    for user in 
+    print("\n" + "="*30)
+    print("--- SERVER SQL REPORT ---")
+    print("="*30)
+    
+    cursor.execute("SELECT username FROM users")
+    users = cursor.fetchall()
+    for (user_name,) in users:
+        print(f"\nUser: {user_name}")
+
+        cursor.execute("SELECT login_time, logout_time FROM login_history WHERE username=?", (user_name,))
+        history = cursor.fetchall()
+        print(f"  Login History: {history}")
+        
+        cursor.execute("SELECT file_name FROM file_tracking WHERE username_of_submitter=?", (user_name,))
+        files = cursor.fetchall()
+        print(f"  Files: {files}")
+    print("\n" + "="*30)
 
 
 def handle_client(client_socket: socket.socket, addr):
@@ -100,7 +112,7 @@ def handle_client(client_socket: socket.socket, addr):
 
     try:
         while True:
-            message = recv_null_terminated(client_socket).strip
+            message = recv_null_terminated(client_socket).strip()
             if message == "":
                 break
             elif message == "REPORT":

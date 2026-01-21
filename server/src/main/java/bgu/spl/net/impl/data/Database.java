@@ -154,9 +154,9 @@ public class Database {
 	 */
 	public void trackFileUpload(String username, String filename, String gameChannel) {
 		String sql = String.format(
-			"INSERT INTO file_tracking (username, filename, upload_time, game_channel) " +
-			"VALUES ('%s', '%s', datetime('now'), '%s')",
-			escapeSql(username), escapeSql(filename), escapeSql(gameChannel)
+			"INSERT INTO file_tracking (filename, username,  game_channel, date_time ) " +
+			"VALUES ('%s', '%s', '%s', datetime('now'))",
+			escapeSql(filename), escapeSql(username),  escapeSql(gameChannel)
 		);
 		executeSQL(sql);
 	}

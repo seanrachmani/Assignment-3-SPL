@@ -9,6 +9,8 @@ import bgu.spl.net.api.StompMessagingProtocol;
 import bgu.spl.net.impl.data.Database;
 import bgu.spl.net.srv.Connections;
 import bgu.spl.net.srv.ConnectionsImpl;
+import main.java.bgu.spl.net.impl.stomp.Frame;
+
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class StompProtocol implements StompMessagingProtocol<String> {
@@ -198,6 +200,24 @@ public class StompProtocol implements StompMessagingProtocol<String> {
             return;
         }
         String body = frame.getBody();
+
+
+        //// send events to dataBase
+        String [] events = body.split("event name:");
+        if (events.length > 1){
+            Database db = Database.getInstance();
+            String username = connectionsCasting.getUsername(connectionId);
+            for(int i =  1 ; i<events.length ; i++){
+                String data = events[i].trim();
+                if(!data.isEmpty()) {
+                    String name = data.split("\n")[0].trim();
+                    db.trackFileUpload(username, name, channel);
+                }
+            }
+        }
+        ////////////////
+        
+
         String currentMessageId = String.valueOf(msgCounter.getAndIncrement());
         for (Map.Entry<Integer, Integer> sub : subscribers.entrySet()) {
             String subID = sub.getValue().toString();
@@ -211,7 +231,7 @@ public class StompProtocol implements StompMessagingProtocol<String> {
     }
 
     //get subscribre frame client instance and handle it as STOMP should
-    public void subscribeFrame(Frame frame){
+    public void subscribeFrame(Frame frame){ 
          String channel = frame.getHeaders().get("destination");
         if(channel==null){
             String body = "the message:"+ "\n" + frame.toString()+ "\n" + "Did not contain a destination header which is REQUIRED for message propagation.";
