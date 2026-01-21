@@ -115,7 +115,7 @@ def start_server(host="127.0.0.1", port=7778):
         server_socket.listen(5)
         print(f"[{SERVER_NAME}] Server started on {host}:{port}")
         print(f"[{SERVER_NAME}] Waiting for connections...")
-
+        init_database()
         while True:
             client_socket, addr = server_socket.accept()
             t = threading.Thread(
