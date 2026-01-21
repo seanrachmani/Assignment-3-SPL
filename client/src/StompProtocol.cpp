@@ -11,7 +11,6 @@ Frame StompProtocol::userCmdToFrame(std::string& cmd,std::string& error) {
     stream >> actualCmd;
     Frame frame;
     frame.command = ""; //starting with empty frame
-
     if(actualCmd =="login"){
         std::string hostPort, username, password;
         stream >> hostPort >> username >> password;
@@ -33,6 +32,7 @@ Frame StompProtocol::userCmdToFrame(std::string& cmd,std::string& error) {
     }
 
     if(actualCmd == "join"){
+        std::cout << "DEBUG join userCMDTOFRAME loop\n";
         std::string gameName;
         stream >> gameName;
         int id = subscriptionIdCounter;
@@ -46,6 +46,8 @@ Frame StompProtocol::userCmdToFrame(std::string& cmd,std::string& error) {
         frame.headers["destination"] = "/" + gameName; 
         frame.headers["id"] = std::to_string(id);
         frame.headers["receipt"] = std::to_string(receipt);
+        std::cout << "DEBUG error is"+ error+ "\n";
+        std::cout << "DEBUG frame returnd by join if in user cmd is: \n"+ frame.toString();
         return frame;
     }
 
@@ -100,7 +102,7 @@ Frame StompProtocol::userCmdToFrame(std::string& cmd,std::string& error) {
         //put summary string into file
         outFile << summary;
         outFile.close();
-
+        std::cout << "summary was created into requested file" << std::endl;
        //we want to return empty frame bc no need to send server anything
         return frame; 
     }
@@ -116,17 +118,25 @@ Frame StompProtocol::userCmdToFrame(std::string& cmd,std::string& error) {
 std::vector<Frame> StompProtocol::parseReportFile(const std::string& filename, std::string& error) {
     std::vector<Frame> frames;
     if (!isConnected) {
-        error = "You must log in first";
+        error = "Couldnt parse file.You must log in first";
         return frames;
     }
 
     try {
         names_and_events data = parseEventsFile(filename); 
+        std::string channelName = data.team_a_name + "_" + data.team_b_name;
+
+        //check if subscribe
+        if (gameToSubId.find(channelName) == gameToSubId.end()) {
+            error = "Error: You are not subscribed to channel '" + channelName + "'. Please join the channel before reporting.";
+            return frames; 
+        }
+
         for (const Event& event : data.events) {
             frames.push_back(buildFrameFromEvent(event));
         }
-    } catch (...) { //catch any exception
-        error = "Failed to parse file";
+    } catch (const std::exception& e) { //catch any exception
+        error = "Failed to parse file" + std::string(e.what());
     }
     return frames;
 }
@@ -160,7 +170,7 @@ Frame StompProtocol::buildFrameFromEvent(const Event& event) {
     }
 
     body += "description:\n";
-    body += event.get_discription();
+    body += event.get_discription() +"\n";
     
     frame.body = body;
     return frame;
@@ -168,6 +178,7 @@ Frame StompProtocol::buildFrameFromEvent(const Event& event) {
 //=============================================================================================================
 //socket thread:
 std::string StompProtocol::handleServerFrame(std::string& serverFrame){
+    std::cout << "DEBUG handleserverfRAME, the frame that we got from server is \n" << serverFrame << std::endl;
     Frame frame = splitFrame(serverFrame);
     if (frame.command == "CONNECTED") {
         isConnected = true;
@@ -175,11 +186,13 @@ std::string StompProtocol::handleServerFrame(std::string& serverFrame){
     }
 
     if (frame.command == "ERROR") {
+         std::cout << "DEBUG handleserverfRAME,ERROR IF, headers[message] is \n" << frame.headers["message"] << std::endl;
         isConnected = false;
         return frame.headers["message"];
     }
     
     if (frame.command == "RECEIPT") {
+        std::cout << "DEBUG handleserverfRAME receipt if \n";
         if (frame.headers.count("receipt-id")) { //there is header like this 
             int receiptId = std::stoi(frame.headers["receipt-id"]); //stoi - string to int
             //logout receipt:
@@ -230,7 +243,7 @@ std::string StompProtocol::handleServerFrame(std::string& serverFrame){
     }
     //if we got till here the command is not recgonized
 
-    return "";   
+    return frame.toString();   
 }
 
 

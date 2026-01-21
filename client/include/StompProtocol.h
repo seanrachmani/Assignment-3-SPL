@@ -170,6 +170,10 @@ bool getConnected() {
     return isConnected;
 }
 
+void updateConnected(){
+    isConnected = true;
+}
+
 //gets user command
 //translate it to Frame which readable for server. 
 //in case there is error that has to be printed without connecting to server it, save it in error object that recieved as paramete

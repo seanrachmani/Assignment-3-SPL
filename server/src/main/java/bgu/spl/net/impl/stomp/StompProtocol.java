@@ -115,7 +115,7 @@ public class StompProtocol implements StompMessagingProtocol<String> {
                 String currentHeader = headersInfo[i];
                 int splitIndex = currentHeader.indexOf(':');
                 if (splitIndex == -1) {
-                    Frame errorFrame = new Frame("ERROR","message","malformed frame", "invalid frame structure");
+                    Frame errorFrame = new Frame("ERROR","message","malformed frame", "invalid frame structure, cant find : char");
                     sendErrorFrame(errorFrame);
                     return null;
                 }
