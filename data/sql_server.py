@@ -66,15 +66,28 @@ def init_database():
 
 
 def execute_sql_command(sql_command: str) -> str:
-    _conn.execute(sql_command)
+    try:
+        _conn.execute(sql_command)
+        return "SUCCESS |" + sql_command + "|"
+    except Exception as e:
+        return "ERROR |" + str(e) + "|"
 
 
 
 def execute_sql_query(sql_query: str) -> str:
-    cursor = _conn.cursor()
-    cursor.execute(sql_query)
-    output = cursor.fetchall()
-    return str(output)
+    try:
+        cursor = _conn.cursor()
+        cursor.execute(sql_query)
+        rows = cursor.fetchall()
+        
+        if not rows:
+            return "SUCCESS|[]"
+            
+        # Join rows with '|'
+        results = [str(row) for row in rows]
+        return "SUCCESS|" + "|".join(results)
+    except Exception as e:
+        return f"ERROR|{str(e)}"
 
 def Report():
     print ( "------REPORT FROM SQL-----")
@@ -87,15 +100,17 @@ def handle_client(client_socket: socket.socket, addr):
 
     try:
         while True:
-            message = recv_null_terminated(client_socket)
+            message = recv_null_terminated(client_socket).strip
             if message == "":
                 break
-
-            print(f"[{SERVER_NAME}] Received:")
-            print(message)
-
-            client_socket.sendall(b"done\0")
-
+            elif message == "REPORT":
+                Report()
+                response = "SUCCESS|Report printed to server console"
+            elif message.startswith("SELECT"):
+                response =  execute_sql_query(message)
+            else: 
+                response = execute_sql_command(message)
+            client_socket.sendall((response + "\0").encode("utf-8")) 
     except Exception as e:
         print(f"[{SERVER_NAME}] Error handling client {addr}: {e}")
     finally:
@@ -104,7 +119,6 @@ def handle_client(client_socket: socket.socket, addr):
         except Exception:
             pass
         print(f"[{SERVER_NAME}] Client {addr} disconnected")
-
 
 def start_server(host="127.0.0.1", port=7778):
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
