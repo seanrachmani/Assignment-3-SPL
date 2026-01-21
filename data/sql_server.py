@@ -11,6 +11,7 @@ the methods below.
 import socket
 import sys
 import threading
+import sqlite3
 
 
 SERVER_NAME = "STOMP_PYTHON_SQL_SERVER"  # DO NOT CHANGE!
@@ -29,16 +30,56 @@ def recv_null_terminated(sock: socket.socket) -> str:
             return msg.decode("utf-8", errors="replace")
 
 
+_conn = sqlite3.connect(DB_FILE)
+cursor = _conn.cursor()
+
 def init_database():
-    pass
+    _conn.executescript("""
+                         
+            CREATE TABLE users (
+            username    TEXT        PRIMARY KEY,
+            user_id      INT         NOT NULL,
+            password    TEXT        NOT NULL
+        );
+                             
+        CREATE TABLE login_history (
+            id          INTEGER     PRIMARY KEY,
+            username    TEXT        NOT NULL,
+            login_time  DATETIME    NOT NULL,
+            logout_time DATETIME    
+                         
+           FOREIGN KEY(username) REFERENCES users(username)              
+        );
+                         
+        CREATE TABLE file_tracking (
+            file_id     INTEGER     PRIMARY KEY,
+            file_name   TEXT        NOT NULL,
+            username_of_submitter   TEXT,
+            game_channel            TEXT        NOT NULL,      
+            timestamp               DATETIME    NOT NULL,
+                         
+            FOREIGN KEY(username_of_submitter) REFERENCES users(username)
+        );
+    """)
+    _conn.commit()
+
 
 
 def execute_sql_command(sql_command: str) -> str:
-    return "done"
+    _conn.execute(sql_command)
+
 
 
 def execute_sql_query(sql_query: str) -> str:
-    return "done"
+    cursor = _conn.cursor()
+    cursor.execute(sql_query)
+    output = cursor.fetchall()
+    return str(output)
+
+def Report():
+    print ( "------REPORT FROM SQL-----")
+    all_users = _conn.execute ("SELECT username FROM users")
+    for user in 
 
 
 def handle_client(client_socket: socket.socket, addr):
