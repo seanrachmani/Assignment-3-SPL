@@ -29,7 +29,8 @@ public class Database {
 	 * @param sql SQL query string
 	 * @return Result string from SQL server
 	 */
-	private String executeSQL(String sql) {
+	//blocking since we use this by server while loggin in so we dont want to have problem
+	private synchronized String executeSQL(String sql) {
 		try (Socket socket = new Socket(sqlHost, sqlPort);
 			 PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
 			 BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
@@ -122,8 +123,8 @@ public class Database {
 		}
 	}
 
-
-	private void logLogin(String username) {
+	
+	private  void logLogin(String username) {
 		String sql = String.format(
 			"INSERT INTO login_history (username, login_time) VALUES ('%s', datetime('now'))",
 			escapeSql(username)
@@ -161,6 +162,7 @@ public class Database {
 		return false;
 	}
 
+	
 	public void logout(int connectionsId) {
 		User user = connectionsIdMap.get(connectionsId);
 		if (user != null) {

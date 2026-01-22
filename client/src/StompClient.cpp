@@ -96,7 +96,9 @@ class SocketClass{
 			{
 			std::lock_guard<std::mutex> lock(_mutex);
 			std::string	result = _protocol.handleServerFrame(answer);
-			std::cout << result << std::endl;
+			if (!result.empty()) {
+        		std::cout << result << std::endl;
+    		}
 			if(_protocol.getConnected() == false){
 				_handler.close();
 				break;
@@ -138,14 +140,24 @@ int main(int argc, char *argv[]){
 				std::cerr << "Could not connect to server" << std::endl;
 				continue;
 			}
-			
-			std::cout << "Connected to the server!" << std::endl;
 			StompProtocol protocol;
 			std::string error;
-			Frame connectFrame = protocol.userCmdToFrame(cmd, error); 
+			Frame connectFrame;
+			{
+                std::lock_guard<std::mutex> lock(mutex);
+                connectFrame = protocol.userCmdToFrame(cmd, error);
+            }
+            if (error != ""){
+				 std::cout << error << std::endl;
+			}
 			if (connectFrame.command == "CONNECT") {
 				std::string frameString = connectFrame.toString();
-				connectionHandler.sendBytes(frameString.c_str(), frameString.length());
+				bool sendLine = connectionHandler.sendBytes(frameString.c_str(), frameString.length());
+				if (!sendLine) {
+					std::cout << "Disconnected..." << std::endl;
+					break;
+				}
+
 				//tasks and threads:
 				//create tasks:
 				SocketClass socketTask(connectionHandler, protocol, mutex);
@@ -166,4 +178,7 @@ int main(int argc, char *argv[]){
 	return 0;
 }
 	
+
+
+
 
