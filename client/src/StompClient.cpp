@@ -13,21 +13,42 @@ class InputClass{
 	ConnectionHandler& _handler;
     StompProtocol& _protocol;
 	std::mutex& _mutex;
+	std::string& _login_line;
 	public:
 	//constructot
-	InputClass(ConnectionHandler& handler, StompProtocol& protocol,std::mutex& mutex)
-	 : _handler(handler), _protocol(protocol), _mutex(mutex) {}
+	InputClass(ConnectionHandler& handler, StompProtocol& protocol,std::mutex& mutex,std::string& loginLine)
+	 : _handler(handler), _protocol(protocol), _mutex(mutex) ,_login_line(loginLine){}
 
 	void run(){
 		while(1){
+			{
+				//catch when we logged out
+                std::lock_guard<std::mutex> lock(_mutex);
+                if (!_protocol.getConnected()) {
+                    break;
+                }
+            }
 			//read input and wrap in buffer
 			const short bufsize = 1024;
 			char buf[bufsize];
 			std::cin.getline(buf, bufsize);
 			std::string line(buf);
+			{
+            std::lock_guard<std::mutex> lock(_mutex);
+            if (!_protocol.getConnected()){
+				//we want to break in order for main to handle login oart
+				_login_line = line;
+				break;
+				}
+            }
+
 			std::stringstream stream(line);
         	std::string command;
         	stream >> command;
+			if (command == "login") {
+                std::cout << "The client is already logged in, log out before trying again" << std::endl;
+                continue;
+            }
 			if(command=="report"){//we need to return lots of send frame
 				std::string filename;
 				stream >> filename;
@@ -43,7 +64,11 @@ class InputClass{
 				}
 				for (Frame& f : frames) {
 					std::string fString = f.toString();
-					_handler.sendBytes(fString.c_str(), fString.length());
+					bool sendLine = _handler.sendBytes(fString.c_str(), fString.length());
+					if (!sendLine) {
+						std::cout << "Disconnected..." << std::endl;
+						break;
+					}
 				} 
 			}
 			else { //any other user commands
@@ -88,6 +113,10 @@ class SocketClass{
 			std::string answer;
 				if (!_handler.getFrameAscii(answer, '\0')) {
 				std::cout << "Disconnected. Exiting...\n" << std::endl;
+				{
+                    std::lock_guard<std::mutex> lock(_mutex);
+                    _protocol.setConnected(false);
+                }
 				break;
 			}
 
@@ -109,14 +138,22 @@ class SocketClass{
 };
 
 int main(int argc, char *argv[]){
-	std::mutex mutex;
+	std::string loginLine = "";
     while(1){
 		//login handle
-		std::string cmd;
 		//try to read from user.if you cant break
-        if (!std::getline(std::cin, cmd)){
-			break;
-		} 
+		//we got login from inout task
+		std::string cmd;
+		if(loginLine!=""){
+			cmd = loginLine;
+			loginLine = "";
+		}
+		else{
+			const short bufsize = 1024;
+			char buf[bufsize];
+			std::cin.getline(buf, bufsize);
+			cmd = buf;
+		}
         std::stringstream stream(cmd);
         std::string command;
         stream >> command;
@@ -133,6 +170,7 @@ int main(int argc, char *argv[]){
 			std::string host = hostPort.substr(0, index);
 			std::string portString = hostPort.substr(index+1);
 			short port = (short)std::stoi(portString);
+
             //create ch and protocol
     		ConnectionHandler connectionHandler(host, port);
 			//try to conenct to server
@@ -141,12 +179,12 @@ int main(int argc, char *argv[]){
 				continue;
 			}
 			StompProtocol protocol;
+			std::mutex mutex;
 			std::string error;
 			Frame connectFrame;
-			{
-                std::lock_guard<std::mutex> lock(mutex);
-                connectFrame = protocol.userCmdToFrame(cmd, error);
-            }
+			
+			//we dont need a lock since we havne created other thread yet
+            connectFrame = protocol.userCmdToFrame(cmd, error);
             if (error != ""){
 				 std::cout << error << std::endl;
 			}
@@ -155,20 +193,30 @@ int main(int argc, char *argv[]){
 				bool sendLine = connectionHandler.sendBytes(frameString.c_str(), frameString.length());
 				if (!sendLine) {
 					std::cout << "Disconnected..." << std::endl;
-					break;
+					continue;
 				}
 
-				//tasks and threads:
-				//create tasks:
-				SocketClass socketTask(connectionHandler, protocol, mutex);
-				InputClass inputTask(connectionHandler, protocol, mutex);
-				
-				//threads
-				//socket thread:
-				std::thread t1(&SocketClass::run, &socketTask);
-				//main thread which started reading from the keyboard is keeping doing it.
-				inputTask.run();
-				t1.join();
+				std::string answer;
+                if (!connectionHandler.getFrameAscii(answer, '\0')) {
+                    std::cout << "Disconnected while waiting for login response." << std::endl;
+                    continue;
+                }
+
+                std::string result = protocol.handleServerFrame(answer);
+                std::cout << result << std::endl; 
+					if (protocol.getConnected()) {
+					//tasks and threads:
+					//create tasks:
+					SocketClass socketTask(connectionHandler, protocol, mutex);
+					InputClass inputTask(connectionHandler, protocol, mutex,loginLine);
+					
+					//threads
+					//socket thread:
+					std::thread t1(&SocketClass::run, &socketTask);
+					//main thread which started reading from the keyboard is keeping doing it.
+					inputTask.run();
+					t1.join();
+				}
 			}
          }
 		 else{
