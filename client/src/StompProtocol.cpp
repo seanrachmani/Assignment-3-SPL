@@ -131,7 +131,7 @@ std::vector<Frame> StompProtocol::parseReportFile(const std::string& filename, s
         }
 
         for (const Event& event : data.events) {
-            frames.push_back(buildFrameFromEvent(event));
+            frames.push_back(buildFrameFromEvent(event,filename));
         }
     } catch (const std::exception& e) { //catch any exception
         error = "Failed to parse file" + std::string(e.what());
@@ -140,11 +140,13 @@ std::vector<Frame> StompProtocol::parseReportFile(const std::string& filename, s
 }
 
 //take the parser was given to us and make frame out of it using our frame struct in order for server to read
-Frame StompProtocol::buildFrameFromEvent(const Event& event) {
+//add file name header according to file name was recieved from user
+Frame StompProtocol::buildFrameFromEvent(const Event& event,const std::string& filename) {
     Frame frame;
     frame.command = "SEND";
     frame.headers["destination"] = "/" + event.get_team_a_name() + "_" + event.get_team_b_name();
-
+    //adding file name header as allowed in forum
+    frame.headers["file-name"] = filename;
     std::string body = "";
     body += "user: " + currentUsername + "\n";
     body += "team a: " + event.get_team_a_name() + "\n";

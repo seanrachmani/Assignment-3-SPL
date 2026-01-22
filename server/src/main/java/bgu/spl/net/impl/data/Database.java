@@ -67,29 +67,61 @@ public class Database {
 	}
 
 	public LoginStatus login(int connectionId, String username, String password) {
+		//user is active in memory
 		if (connectionsIdMap.containsKey(connectionId)) {
 			return LoginStatus.CLIENT_ALREADY_CONNECTED;
 		}
-		if (addNewUserCase(connectionId, username, password)) {
-			// Log new user registration in SQL
-			String sql = String.format(
-				"INSERT INTO users (username, password, registration_date) VALUES ('%s', '%s', datetime('now'))",
-				escapeSql(username), escapeSql(password)
-			);
-			executeSQL(sql);
-			
-			// Log login
+		//check if user exist in our data base
+		String isExist = "SELECT password FROM users WHERE username='" + escapeSql(username) + "'";
+    	String dbResponse = executeSQL(isExist);
+		String savedPass = null;
+		boolean existedInDB = false;
+		//understand server response:
+		if (dbResponse.startsWith("SUCCESS")) {
+        	String[] parts = dbResponse.split("\\|");
+			//according to what defines in server
+			if (parts.length > 1 && !parts[1].trim().equals("[]") && !parts[1].trim().isEmpty()){
+            savedPass = parts[1].trim();
+            existedInDB = true;
+        	}
+    	}
+		//add neww user
+		if(!existedInDB){
+			//sql registration
+			String sqlInsert = String.format(
+            "INSERT INTO users (username, password, registration_date) VALUES ('%s', '%s', datetime('now'))",escapeSql(username), escapeSql(password));
+        	executeSQL(sqlInsert);
+			//create user for current session
+			User newUser = new User(connectionId, username, password);
+			newUser.login();
+			userMap.put(username, newUser);
+			connectionsIdMap.put(connectionId, newUser);
+			//registerin DB
 			logLogin(username);
 			return LoginStatus.ADDED_NEW_USER;
-		} else {
-			LoginStatus status = userExistsCase(connectionId, username, password);
-			if (status == LoginStatus.LOGGED_IN_SUCCESSFULLY) {
-				// Log successful login in SQL
-				logLogin(username);
+		}
+		else{ //existed
+			if(!savedPass.equals(password)){
+				return LoginStatus.WRONG_PASSWORD;
 			}
-			return status;
+			//if we got to this part the password is true
+			User activeUser = userMap.get(username);
+        	if (activeUser != null && activeUser.isLoggedIn()) {
+            	return LoginStatus.ALREADY_LOGGED_IN;
+        	}
+
+			if (activeUser == null) {
+            activeUser = new User(connectionId, username, password);
+            userMap.put(username, activeUser);
+       		}
+			activeUser.login();
+			activeUser.setConnectionId(connectionId);
+			connectionsIdMap.put(connectionId, activeUser);
+			logLogin(username);
+			return LoginStatus.LOGGED_IN_SUCCESSFULLY;
 		}
 	}
+
 
 	private void logLogin(String username) {
 		String sql = String.format(
@@ -240,6 +272,7 @@ public class Database {
 	System.out.println(repeat("=", 80));
 }
 
+
 private String repeat(String str, int times) {
 	StringBuilder sb = new StringBuilder();
 	for (int i = 0; i < times; i++) {
@@ -250,4 +283,21 @@ private String repeat(String str, int times) {
 
 private static class Instance {
 	static Database instance = new Database();
-}}
+}
+
+//check if username existed in db
+public boolean isExisted(String username){
+	String sql = "SELECT username FROM users WHERE username='" + escapeSql(username) + "'";
+    String result = executeSQL(sql);
+	if (result.startsWith("SUCCESS")) {
+        String[] parts = result.split("\\|");
+        if(parts.length > 1 && !parts[1].trim().equals("[]")){
+			return true;
+		}
+    }
+	return false;
+}
+}
+
+
+

@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import bgu.spl.net.impl.data.LoginStatus;
+import bgu.spl.net.impl.data.User;
 import bgu.spl.net.api.StompMessagingProtocol;
 import bgu.spl.net.impl.data.Database;
 import bgu.spl.net.srv.Connections;
@@ -197,6 +198,18 @@ public class StompProtocol implements StompMessagingProtocol<String> {
         if(subscribers==null || subscribers.isEmpty()){
             return;
         }
+
+        //file tracking
+        String destination = frame.getHeaders().get("destination");
+        String filename = frame.getHeaders().get("file-name");
+        String username = frame.getHeaders().get("user");
+        if (filename != null && username!=null && destination!=null) {
+            Database db = Database.getInstance();
+            if(db.isExisted(username)){
+                db.trackFileUpload(username, filename, destination);
+            }
+        }
+    
         String body = frame.getBody();
         String currentMessageId = String.valueOf(msgCounter.getAndIncrement());
         for (Map.Entry<Integer, Integer> sub : subscribers.entrySet()) {
@@ -272,10 +285,10 @@ public class StompProtocol implements StompMessagingProtocol<String> {
 
     //get disconnect frame client instance and handle it as STOMP should
      public void disconnectFrame(Frame frame){
-    checkReceipt(frame);
-    Database.getInstance().logout(connectionId);
-    connections.disconnect(connectionId);
-    shouldTerminate = true;
+        checkReceipt(frame);
+        Database.getInstance().logout(connectionId);
+        connections.disconnect(connectionId);
+        shouldTerminate = true;
     }
 
 

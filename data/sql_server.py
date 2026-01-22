@@ -11,6 +11,7 @@ the methods below.
 import socket
 import sys
 import threading
+import sqlite3
 
 
 SERVER_NAME = "STOMP_PYTHON_SQL_SERVER"  # DO NOT CHANGE!
@@ -28,17 +29,85 @@ def recv_null_terminated(sock: socket.socket) -> str:
             msg, _ = data.split(b"\0", 1)
             return msg.decode("utf-8", errors="replace")
 
+"""Add an SQLite object to the server and initialize it as taught in class"""
+_conn = sqlite3.connect(DB_FILE, check_same_thread=False)
+"""connection object"""
+cursor = _conn.cursor() 
 
 def init_database():
-    pass
+    _conn.executescript("""
+                         
+            CREATE TABLE IF NOT EXISTS users (
+            username    TEXT        PRIMARY KEY,
+            password    TEXT        NOT NULL,
+            registration_date   DATETIME    NOT NULL
+        );
+                             
+        CREATE TABLE IF NOT EXISTS login_history (
+            id          INTEGER     PRIMARY KEY,
+            username    TEXT        NOT NULL,
+            login_time  DATETIME    NOT NULL,
+            logout_time DATETIME,    
+                         
+           FOREIGN KEY(username) REFERENCES users(username)              
+        );
+                         
+        CREATE TABLE IF NOT EXISTS file_tracking (
+            id          INTEGER     PRIMARY KEY  AUTOINCREMENT,
+            file_name   TEXT        NOT NULL,
+            username_of_submitter   TEXT,
+            game_channel            TEXT        NOT NULL,      
+            date_time               DATETIME    NOT NULL,
+                         
+            FOREIGN KEY(username_of_submitter) REFERENCES users(username)
+        );
+    """)
+    _conn.commit()
+
 
 
 def execute_sql_command(sql_command: str) -> str:
-    return "done"
+    try:
+        _conn.execute(sql_command)
+        _conn.commit()
+        return "SUCCESS |" + sql_command + "|"
+    except Exception as e:
+        print(f"SQL Error: {e}")
+        return "ERROR |" + str(e) + "|"
+
 
 
 def execute_sql_query(sql_query: str) -> str:
-    return "done"
+    try:
+        cursor = _conn.cursor()
+        cursor.execute(sql_query)
+        rows = cursor.fetchall()
+        
+        if not rows:
+            return "SUCCESS|[]" 
+        results = [",".join(map(str, row)) for row in rows]
+        return "SUCCESS|" + "|".join(results)
+    except Exception as e:
+        return f"ERROR|{str(e)}"
+
+def Report():
+    print("\n" + "="*30)
+    print("--- SERVER SQL REPORT ---")
+    print("="*30)
+    
+    cursor.execute("SELECT username FROM users")
+    users = cursor.fetchall()
+    for (user_name,) in users:
+        print(f"\nUser: {user_name}")
+
+        cursor.execute("SELECT login_time, logout_time FROM login_history WHERE username=?", (user_name,))
+        history = cursor.fetchall()
+        print(f"  Login History: {history}")
+        
+        cursor.execute("SELECT file_name FROM file_tracking WHERE username_of_submitter=?", (user_name,))
+        files = cursor.fetchall()
+        print(f"  Files: {files}")
+    print("\n" + "="*30)
 
 
 def handle_client(client_socket: socket.socket, addr):
@@ -46,15 +115,17 @@ def handle_client(client_socket: socket.socket, addr):
 
     try:
         while True:
-            message = recv_null_terminated(client_socket)
-            if message == "":
+            message = recv_null_terminated(client_socket).strip()
+            if not message:
                 break
-
-            print(f"[{SERVER_NAME}] Received:")
-            print(message)
-
-            client_socket.sendall(b"done\0")
-
+            elif message == "REPORT":
+                Report()
+                response = "SUCCESS|Report printed to server console"
+            elif message.startswith("SELECT"):
+                response =  execute_sql_query(message)
+            else: 
+                response = execute_sql_command(message)
+            client_socket.sendall((response + "\0").encode("utf-8"));
     except Exception as e:
         print(f"[{SERVER_NAME}] Error handling client {addr}: {e}")
     finally:
@@ -74,7 +145,7 @@ def start_server(host="127.0.0.1", port=7778):
         server_socket.listen(5)
         print(f"[{SERVER_NAME}] Server started on {host}:{port}")
         print(f"[{SERVER_NAME}] Waiting for connections...")
-
+        init_database()
         while True:
             client_socket, addr = server_socket.accept()
             t = threading.Thread(

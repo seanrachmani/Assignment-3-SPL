@@ -185,7 +185,7 @@ Frame userCmdToFrame(std::string& cmd,std::string& error);
 std::vector<Frame> parseReportFile(const std::string& filename,std::string& error);
 
 //make frame from event 
-Frame buildFrameFromEvent(const Event& event);
+Frame buildFrameFromEvent(const Event& event,const std::string& filename);
 
 //gets answerFrame from server and handle it according to instructions
 std::string handleServerFrame(std::string& serverFrame);
