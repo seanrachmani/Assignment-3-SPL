@@ -10,6 +10,7 @@ import bgu.spl.net.api.StompMessagingProtocol;
 import bgu.spl.net.impl.data.Database;
 import bgu.spl.net.srv.Connections;
 import bgu.spl.net.srv.ConnectionsImpl;
+import bgu.spl.net.srv.DatabaseSQL;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class StompProtocol implements StompMessagingProtocol<String> {
@@ -154,7 +155,7 @@ public class StompProtocol implements StompMessagingProtocol<String> {
         String username = frame.getHeaders().get("login");
         String password = frame.getHeaders().get("passcode");
         //get instance of db whene username and pass saved
-        Database db = Database.getInstance();
+        DatabaseSQL db = DatabaseSQL.getInstance();
         LoginStatus status = db.login(connectionId, username, password);
         if(status == LoginStatus.CLIENT_ALREADY_CONNECTED){
             Frame errorFrame = new Frame("ERROR","message","client already connected","");
@@ -174,6 +175,11 @@ public class StompProtocol implements StompMessagingProtocol<String> {
         if(status == LoginStatus.ADDED_NEW_USER || status == LoginStatus.LOGGED_IN_SUCCESSFULLY){
             Frame connectedFrame = new Frame("CONNECTED","version","1.2","");
             connections.send(connectionId,connectedFrame.toString());
+        }
+        if(status == LoginStatus.SQL_ERROR){
+            Frame errorFrame = new Frame("ERROR","message","SQL problem","");
+            sendErrorFrame(errorFrame);
+            return;
         }
     }
 
@@ -204,7 +210,7 @@ public class StompProtocol implements StompMessagingProtocol<String> {
         String filename = frame.getHeaders().get("file-name");
         String username = frame.getHeaders().get("user");
         if (filename != null && username!=null && destination!=null) {
-            Database db = Database.getInstance();
+            DatabaseSQL db = DatabaseSQL.getInstance();
             if(db.isExisted(username)){
                 db.trackFileUpload(username, filename, destination);
             }
@@ -286,7 +292,7 @@ public class StompProtocol implements StompMessagingProtocol<String> {
     //get disconnect frame client instance and handle it as STOMP should
      public void disconnectFrame(Frame frame){
         checkReceipt(frame);
-        Database.getInstance().logout(connectionId);
+        DatabaseSQL.getInstance().logout(connectionId);
         connections.disconnect(connectionId);
         shouldTerminate = true;
     }
