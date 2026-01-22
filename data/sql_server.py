@@ -36,13 +36,13 @@ cursor = _conn.cursor()
 def init_database():
     _conn.executescript("""
                          
-            CREATE TABLE IF NOT EXISTS users (
+            CREATE TABLE users (
             username    TEXT        PRIMARY KEY,
             password    TEXT        NOT NULL,
             registration_date   DATETIME    NOT NULL
         );
                              
-        CREATE TABLE IF NOT EXISTS login_history (
+        CREATE TABLE login_history (
             id          INTEGER     PRIMARY KEY,
             username    TEXT        NOT NULL,
             login_time  DATETIME    NOT NULL,
@@ -50,9 +50,9 @@ def init_database():
                          
            FOREIGN KEY(username) REFERENCES users(username)              
         );
-        CREATE UNIQUE INDEX IF NOT EXISTS uniqe_login ON login_history(username) WHERE logout_time IS NULL;
+        CREATE UNIQUE INDEX uniqe_login ON login_history(username) WHERE logout_time IS NULL;
                          
-        CREATE TABLE IF NOT EXISTS file_tracking (
+        CREATE TABLE file_tracking (
             file_name   TEXT        PRIMARY KEY,
             username_of_submitter   TEXT,
             game_channel            TEXT        NOT NULL,      
