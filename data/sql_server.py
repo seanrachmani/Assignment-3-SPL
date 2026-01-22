@@ -74,62 +74,30 @@ def init_database():
 
     _conn.executescript("""
 
-                         
-
-            CREATE TABLE users (
-
-            username    TEXT        PRIMARY KEY,
-
-            password    TEXT        NOT NULL,
-
-            registration_date   DATETIME    NOT NULL
-
+  CREATE TABLE IF NOT EXISTS users (
+            username           TEXT        PRIMARY KEY,
+            password           TEXT        NOT NULL,
+            registration_date  DATETIME    NOT NULL
         );
 
-                             
-
-        CREATE TABLE login_history (
-
-            id          INTEGER     PRIMARY KEY,
-
-            username    TEXT        NOT NULL,
-
-            login_time  DATETIME    NOT NULL,
-
-            logout_time DATETIME,    
-
-                         
-
-           FOREIGN KEY(username) REFERENCES users(username)              
-
+        CREATE TABLE IF NOT EXISTS login_history (
+            id           INTEGER     PRIMARY KEY AUTOINCREMENT,
+            username     TEXT        NOT NULL,
+            login_time   DATETIME    NOT NULL,
+            logout_time  DATETIME,
+            FOREIGN KEY(username) REFERENCES users(username)
         );
 
-        CREATE UNIQUE INDEX uniqe_login ON login_history(username) WHERE logout_time IS NULL;
-
-                         
-
-        CREATE TABLE file_tracking (
-
-            file_name   TEXT        PRIMARY KEY,
-
-            username_of_submitter   TEXT,
-
-            game_channel            TEXT        NOT NULL,      
-
-            date_time               DATETIME    NOT NULL,
-
-                         
-
-            FOREIGN KEY(username_of_submitter) REFERENCES users(username)
-
+        CREATE TABLE IF NOT EXISTS file_tracking (
+            id                     INTEGER     PRIMARY KEY AUTOINCREMENT,
+            filename               TEXT        NOT NULL,
+            username               TEXT        NOT NULL,
+            game_channel           TEXT        NOT NULL,
+            upload_time              DATETIME    NOT NULL,
+            FOREIGN KEY(username) REFERENCES users(username)
         );
-
     """)
-
     _conn.commit()
-
-
-
 
 
 
@@ -212,7 +180,7 @@ def Report():
 
        
 
-        cursor.execute("SELECT file_name FROM file_tracking WHERE username_of_submitter=?", (user_name,))
+        cursor.execute("SELECT filename FROM file_tracking WHERE username=?", (user_name,))
 
         files = cursor.fetchall()
 

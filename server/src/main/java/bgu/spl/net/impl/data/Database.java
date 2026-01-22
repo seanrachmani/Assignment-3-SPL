@@ -187,6 +187,11 @@ public class Database {
 	 * @param gameChannel Game channel the file was reported to
 	 */
 	public void trackFileUpload(String username, String filename, String gameChannel) {
+		//since we register files by send frame which sent for each event we dont want to register each file as the events number so we made 
+		//hekper function to make sure each file tracked once
+		if(isExistedFile(username, filename, gameChannel)) {
+			return;
+		}
 		String sql = String.format(
 			"INSERT INTO file_tracking (username, filename, upload_time, game_channel) " +
 			"VALUES ('%s', '%s', datetime('now'), '%s')",
@@ -288,7 +293,7 @@ private static class Instance {
 }
 
 //check if username existed in db
-public boolean isExisted(String username){
+public boolean isExistedUsername(String username){
 	String sql = "SELECT username FROM users WHERE username='" + escapeSql(username) + "'";
     String result = executeSQL(sql);
 	if (result.startsWith("SUCCESS")) {
@@ -297,6 +302,20 @@ public boolean isExisted(String username){
 			return true;
 		}
     }
+	return false;
+}
+
+//is existed file name in db
+public boolean isExistedFile(String username, String filename, String gameChannel) {
+    String sql = String.format(
+        "SELECT id FROM file_tracking WHERE username='%s' AND filename='%s' AND game_channel='%s'",
+        escapeSql(username), escapeSql(filename), escapeSql(gameChannel)
+    );
+    String response = executeSQL(sql);
+    
+	if(response.startsWith("SUCCESS") && !response.contains("[]")){
+		return true;
+	}
 	return false;
 }
 }

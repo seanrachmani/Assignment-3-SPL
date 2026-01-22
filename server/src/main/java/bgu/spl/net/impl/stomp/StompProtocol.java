@@ -202,10 +202,13 @@ public class StompProtocol implements StompMessagingProtocol<String> {
         //file tracking
         String destination = frame.getHeaders().get("destination");
         String filename = frame.getHeaders().get("file-name");
-        String username = frame.getHeaders().get("user");
+        //username is first line in body send frame
+        String username;
+        String firstLine = frame.body.split("\n")[0];
+        username = firstLine.split(":")[1].trim();
         if (filename != null && username!=null && destination!=null) {
             Database db = Database.getInstance();
-            if(db.isExisted(username)){
+            if(db.isExistedUsername(username)){
                 db.trackFileUpload(username, filename, destination);
             }
         }
