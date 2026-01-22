@@ -10,7 +10,7 @@ import bgu.spl.net.api.StompMessagingProtocol;
 import bgu.spl.net.impl.data.Database;
 import bgu.spl.net.srv.Connections;
 import bgu.spl.net.srv.ConnectionsImpl;
-import bgu.spl.net.srv.DatabaseSQL;
+import bgu.spl.net.impl.data.DataBaseSQL; 
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class StompProtocol implements StompMessagingProtocol<String> {
@@ -155,7 +155,7 @@ public class StompProtocol implements StompMessagingProtocol<String> {
         String username = frame.getHeaders().get("login");
         String password = frame.getHeaders().get("passcode");
         //get instance of db whene username and pass saved
-        DatabaseSQL db = DatabaseSQL.getInstance();
+        DataBaseSQL db = DataBaseSQL.getInstance();
         LoginStatus status = db.login(connectionId, username, password);
         if(status == LoginStatus.CLIENT_ALREADY_CONNECTED){
             Frame errorFrame = new Frame("ERROR","message","client already connected","");
@@ -210,7 +210,7 @@ public class StompProtocol implements StompMessagingProtocol<String> {
         String filename = frame.getHeaders().get("file-name");
         String username = frame.getHeaders().get("user");
         if (filename != null && username!=null && destination!=null) {
-            DatabaseSQL db = DatabaseSQL.getInstance();
+            DataBaseSQL db = DataBaseSQL.getInstance();
             if(db.isExisted(username)){
                 db.trackFileUpload(username, filename, destination);
             }
@@ -292,7 +292,7 @@ public class StompProtocol implements StompMessagingProtocol<String> {
     //get disconnect frame client instance and handle it as STOMP should
      public void disconnectFrame(Frame frame){
         checkReceipt(frame);
-        DatabaseSQL.getInstance().logout(connectionId);
+        DataBaseSQL.getInstance().logout(connectionId);
         connections.disconnect(connectionId);
         shouldTerminate = true;
     }

@@ -6,19 +6,19 @@ import java.io.PrintWriter;
 import java.net.Socket;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class DatabaseSQL {
+public class DataBaseSQL {
 	private final ConcurrentHashMap<Integer , String> currentUsernames;
 	private final String sqlHost;
 	private final int sqlPort;
 
-	private DatabaseSQL() {
+	private DataBaseSQL() {
 		currentUsernames = new ConcurrentHashMap<>();
 		// SQL server connection details
 		this.sqlHost = "127.0.0.1";
 		this.sqlPort = 7779;
 	}
 
-	public static DatabaseSQL getInstance() {
+	public static DataBaseSQL getInstance() {
 		return Instance.instance;
 	}
 
@@ -246,5 +246,5 @@ private String repeat(String str, int times) {
 }
 
 private static class Instance {
-	static DatabaseSQL instance = new DatabaseSQL();
+	static DataBaseSQL instance = new DataBaseSQL();
 }}

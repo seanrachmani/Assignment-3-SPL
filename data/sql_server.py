@@ -29,10 +29,9 @@ def recv_null_terminated(sock: socket.socket) -> str:
             msg, _ = data.split(b"\0", 1)
             return msg.decode("utf-8", errors="replace")
 
-"""Add an SQLite object to the server and initialize it as taught in class"""
+
 _conn = sqlite3.connect(DB_FILE, check_same_thread=False)
-"""connection object"""
-cursor = _conn.cursor() 
+cursor = _conn.cursor()
 
 def init_database():
     _conn.executescript("""
@@ -51,10 +50,10 @@ def init_database():
                          
            FOREIGN KEY(username) REFERENCES users(username)              
         );
+        CREATE UNIQUE INDEX IF NOT EXISTS uniqe_login ON login_history(username) WHERE logout_time IS NULL;
                          
         CREATE TABLE IF NOT EXISTS file_tracking (
-            id          INTEGER     PRIMARY KEY  AUTOINCREMENT,
-            file_name   TEXT        NOT NULL,
+            file_name   TEXT        PRIMARY KEY,
             username_of_submitter   TEXT,
             game_channel            TEXT        NOT NULL,      
             date_time               DATETIME    NOT NULL,
@@ -68,6 +67,7 @@ def init_database():
 
 def execute_sql_command(sql_command: str) -> str:
     try:
+        # tell the sql to do the command
         _conn.execute(sql_command)
         _conn.commit()
         return "SUCCESS |" + sql_command + "|"
@@ -81,12 +81,16 @@ def execute_sql_query(sql_query: str) -> str:
     try:
         cursor = _conn.cursor()
         cursor.execute(sql_query)
+        # get the result of the query
         rows = cursor.fetchall()
-        
+        # managed to find but its empty
         if not rows:
-            return "SUCCESS|[]" 
-        results = [",".join(map(str, row)) for row in rows]
+            return "SUCCESS|[]"
+        # return everything found
+        results = [str(row) for row in rows]
+        #seperate by | as databse require
         return "SUCCESS|" + "|".join(results)
+    #the query failed
     except Exception as e:
         return f"ERROR|{str(e)}"
 
@@ -95,15 +99,17 @@ def Report():
     print("--- SERVER SQL REPORT ---")
     print("="*30)
     
+    # get current usernames
     cursor.execute("SELECT username FROM users")
     users = cursor.fetchall()
+
     for (user_name,) in users:
         print(f"\nUser: {user_name}")
-
+        # get their logout and loogin times
         cursor.execute("SELECT login_time, logout_time FROM login_history WHERE username=?", (user_name,))
         history = cursor.fetchall()
         print(f"  Login History: {history}")
-        
+        # get all the file names they uploaded
         cursor.execute("SELECT file_name FROM file_tracking WHERE username_of_submitter=?", (user_name,))
         files = cursor.fetchall()
         print(f"  Files: {files}")
@@ -114,17 +120,27 @@ def handle_client(client_socket: socket.socket, addr):
     print(f"[{SERVER_NAME}] Client connected from {addr}")
 
     try:
+        #the server loop
         while True:
-            message = recv_null_terminated(client_socket).strip()
-            if not message:
+            raw = recv_null_terminated(client_socket)
+            # server is closed
+            if raw == "":
                 break
+            message = raw.strip()
+            # nothing is sent
+            if message == "":
+                continue
+            # report asking
             elif message == "REPORT":
                 Report()
-                response = "SUCCESS|Report printed to server console"
+                response = "SUCCESS|Report printed to server console|"
+            # its a query
             elif message.startswith("SELECT"):
                 response =  execute_sql_query(message)
+            # can only be command
             else: 
                 response = execute_sql_command(message)
+            # send the response with the null char
             client_socket.sendall((response + "\0").encode("utf-8"));
     except Exception as e:
         print(f"[{SERVER_NAME}] Error handling client {addr}: {e}")
@@ -136,7 +152,7 @@ def handle_client(client_socket: socket.socket, addr):
         print(f"[{SERVER_NAME}] Client {addr} disconnected")
 
 
-def start_server(host="127.0.0.1", port=7778):
+def start_server(host="127.0.0.1", port=7779):
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
@@ -165,7 +181,7 @@ def start_server(host="127.0.0.1", port=7778):
 
 
 if __name__ == "__main__":
-    port = 7778
+    port = 7779
     if len(sys.argv) > 1:
         raw_port = sys.argv[1].strip()
         try:
